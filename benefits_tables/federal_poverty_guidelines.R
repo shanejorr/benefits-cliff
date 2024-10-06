@@ -1,20 +1,97 @@
 ################################################################################
 #
-# create federal poverty guidelines
+# functions to pull in federal poverty guidelines from the HHS API
+# API documentation: https://aspe.hhs.gov/topics/poverty-economic-mobility/poverty-guidelines/poverty-guidelines-api
 #
 ###############################################################################
 
-library(tidyverse)
+get_single_poverty_guidelines <- function(year, state, household_size) {
 
-# federal poverty guidelines for 2017, 2018, 2019 ---------------------------
+  # Function to fetch poverty guidelines for a specific year, state, and household size
+  #' @title Fetch Federal Poverty Guidelines
+  #' @description Fetches the federal poverty guideline for a given year, state, and household size from the HHS API.
+  #' @param year An integer representing the year. Valid years are between 1983 and 2024.
+  #' @param state A character string representing the state. Valid values are 'us' (contiguous U.S. and D.C.), 'hi' (Hawaii), and 'ak' (Alaska).
+  #' @param household_size An integer representing the household size. Valid values are between 1 and 8.
+  #' @return A tibble with columns 'year', 'state', 'household_size', and 'poverty_threshold'.
+  #' @examples
+  #' df <- get_poverty_guidelines(2023, "us", 4)
+  #' print(df)
 
-fpg <- data.frame(household_size = rep(seq_len(8), times = 3),
-                    guidelines_year = c(12490, 16910, 21330, 25750, 30170, 34590, 39010, 43430,
-                                        12140, 16460, 20780, 25100, 29420, 33740, 38060, 42380,
-                                        12060, 16240, 20420, 24600, 28780, 32960, 37140, 41320),
-                    year = rep(c(2019, 2018, 2017), each=8)) %>%
-    # add montly guidelines
-    mutate(guidelines_month = round(guidelines_year / 12,0)) %>%
-    select(household_size, year, everything())
+  current_year <- lubridate::year(Sys.Date())
 
-write_rds(fpg, 'Forsyth_County_2019/benefits_tables/tables/federal_poverty_guidelines.rds')
+  # Validate inputs
+  valid_states <- c("us", "hi", "ak")
+  valid_years <- 1983:current_year
+  valid_household_sizes <- 1:8
+
+  if (!state %in% valid_states) {
+    stop("Invalid state. Valid values are 'us', 'hi', and 'ak'.")
+  }
+
+  if (!year %in% valid_years) {
+    stop("Invalid year. Valid years are between 1983 and 2024.")
+  }
+
+  if (!household_size %in% valid_household_sizes) {
+    stop("Invalid household size. Valid values are between 1 and 8.")
+  }
+
+  # Build the API request URL
+  url <- paste0("https://aspe.hhs.gov/topics/poverty-economic-mobility/poverty-guidelines/api/",
+                year, "/", state, "/", household_size)
+
+  # Make the GET request
+  response <- httr2::request(url) |> httr2::req_perform()
+
+  # Check if the request was successful
+  if (httr2::resp_status(response) != 200) {
+    stop("Failed to fetch data. Status code: ", httr2::resp_status(response))
+  }
+
+  # Extract the data from the response
+  data <- httr2::resp_body_json(response)$data
+
+  # Return the data as a data frame
+  tibble::tibble(
+    year = as.numeric(data$year),
+    state = data$state,
+    household_size = as.numeric(data$household_size),
+    poverty_threshold = as.numeric(data$income)
+  )
+}
+
+
+get_poverty_guidelines <- function(years, states, household_sizes) {
+
+  # Function to fetch poverty guidelines for multiple years and/or household sizes
+  #' @title Fetch Multiple Federal Poverty Guidelines
+  #' @description Fetches federal poverty guidelines for multiple years and/or household sizes from the HHS API.
+  #' @param years A vector of integers representing the years. Valid years are between 1983 and 2024.
+  #' @param state A character string representing the state. Valid values are 'us' (contiguous U.S. and D.C.), 'hi' (Hawaii), and 'ak' (Alaska).
+  #' @param household_sizes A vector of integers representing household sizes. Valid values are between 1 and 8.
+  #' @return A tibble with columns 'year', 'state', 'household_size', and 'poverty_threshold' for each combination of year and household size.
+  #' @examples
+  #' years <- c(2022, 2023)
+  #' household_sizes <- c(1, 4, 6)
+  #' df <- get_multiple_poverty_guidelines(years, "us", household_sizes)
+  #' print(df)
+
+  # Create list that contains all combinations of parameters
+  # each list element contains one combination of parameters
+  params <- tidyr::expand_grid(year = years, state = states, household_size = household_sizes) |>
+    dplyr::mutate(.id = dplyr::row_number()) |>
+    dplyr::group_by(.id) |>
+    dplyr::group_split() |>
+    purrr::map(as.list)
+
+  # Map over the parameters and call get_poverty_guidelines for each combination
+  results <- purrr::map(
+    params,
+    function(x) get_single_poverty_guidelines(x$year, x$state, x$household_size)
+  ) |>
+    purrr::list_rbind()
+
+  return(results)
+}
+

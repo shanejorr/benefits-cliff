@@ -4,49 +4,68 @@
 #
 ##############################################################
 
-library(tidyverse)
+source("benefits_tables/base_table.R")
+source("benefits_tables/federal_poverty_guidelines.R")
 
-care <- read_rds('Forsyth_County_2019/benefits_tables/tables/base.rds')
+child_care <- function() {
 
-# the market value of subsidies are based on the 2019 NC subsidized child care
-# market rates for Forsyth County 4-star child care centers
-# https://ncchildcare.ncdhhs.gov/Portals/0/documents/pdf/R/Revised-8-16-Market_Rate_Centers_Eff-10-1-18.pdf?ver=2018-08-28-105655-863
+  current_year <- 2019
 
-# Forsyth County market rates for $855 for infant and $750 for 3-5
-# we will assume that families with 2 or more children have an infant and 3-5 year old
-# while families with one child only have a 3-5 year old
-# create named vector to map number of children to total market rate amounts
-market_rates <- c(`0` = 0,
-                  `1` = 750,
-                  `2` = 1605, # 855 + 750 (infant plut 3 to 5)
-                  `3` = 1605 # for three child families, only two are under 5
-                  )
+  care <- base_composition()
 
-# create new column for market rates, which signifies benefit level
-care <- care %>%
-  mutate(payment = recode(.$children, !!!market_rates),
-  # recipients have to pay 10% of income
-  # so subtract this amount from
-  payment = round(payment - (monthly_income * .10), 2),
-  # if payment is negative, convert to 0
-  payment = ifelse(payment < 0, 0, payment))
+  # the market value of subsidies are based on the 2019 NC subsidized child care
+  # market rates for Forsyth County 4-star child care centers
+  # https://ncchildcare.ncdhhs.gov/Portals/0/documents/pdf/R/Revised-8-16-Market_Rate_Centers_Eff-10-1-18.pdf?ver=2018-08-28-105655-863
 
-# can receive benefits up to 200% fpg
+  # Forsyth County market rates for $855 for infant and $750 for 3-5
+  # we will assume that families with 2 or more children have an infant and 3-5 year old
+  # while families with one child only have a 3-5 year old
+  # create named vector to map number of children to total market rate amounts
+  market_rates <- tibble::tribble(
+    ~children, ~payment,
+    0, 0,
+    1, 750,
+    2, 1605,
+    3, 1605
+  )
 
-# read in federal poverty guidelines
-fpg <- read_rds('Forsyth_County_2019/benefits_tables/tables/federal_poverty_guidelines.rds') %>%
-  # convert guideline amounts to 200% and filter for 2019
-  filter(year == 2019) %>%
-  mutate(income_limit = round(guidelines_month * 2, 0)) %>%
-  rename(size = household_size) %>%
-  select(size, income_limit)
+  # create new column for market rates, which signifies benefit level
+  care <- care |>
+    dplyr::left_join(market_rates, by = "children", relationship = "many-to-many") |>
+    dplyr::mutate(
+      # recipients have to pay 10% of income
+      # so subtract this amount from
+      payment = round(payment - (monthly_income * .10), 2),
+      # if payment is negative, convert to 0
+      payment = dplyr::if_else(payment < 0, 0, payment)
+    )
 
-# add 200% fpl to child care data set
-care <- care %>%
-  left_join(fpg, by = "size") %>%
-  # set payment to 0 if income is greater than 200% of poverty guideline
-  mutate(payment = ifelse(monthly_income > income_limit, 0, payment),
-         benefit = "NC Child Care Subsidy / Smart Start") %>%
-  select(composition, adults, children, monthly_income, payment, benefit)
+  # can receive benefits up to 200% fpg
 
-write_rds(care, 'benefits_tables/tables/child_care_subsidy.rds')
+  # get federal poverty guidelines
+  # only want family sizes that we have in our base table
+
+  family_sizes <- unique(care$size)
+
+  fpg <- get_poverty_guidelines(current_year, 'us', family_sizes) |>
+    dplyr::select(household_size, poverty_threshold)
+
+  fpg <- fpg |>
+    # convert guideline amounts to 200% and calculate bymonth
+    dplyr::mutate(income_limit = round(poverty_threshold * 2, 0)) |>
+    dplyr::rename(size = household_size) |>
+    dplyr::select(size, income_limit)
+
+  # add 200% fpg to child care data set
+  care <- care |>
+    dplyr::left_join(fpg, by = "size") |>
+    # set payment to 0 if income is greater than 200% of poverty guideline
+    dplyr::mutate(
+      payment = dplyr::if_else(monthly_income > income_limit, 0, payment),
+      benefit = "NC Child Care Subsidy / Smart Start"
+    ) |>
+    dplyr::select(composition, adults, children, monthly_income, payment, benefit)
+
+  return(care)
+
+}
