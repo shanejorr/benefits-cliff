@@ -88,7 +88,7 @@ fns_snap <- function(base_table) {
   # maximum income is set at 200% of federal poverty guideline
   # read in federal poverty guidelines
 
-  family_sizes <- unique(base$size)
+  family_sizes <- unique(base_table$size)
 
   fpg <- get_poverty_guidelines(current_year, 'us', family_sizes) |>
     dplyr::select(household_size, poverty_threshold)
