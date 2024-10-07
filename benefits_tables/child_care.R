@@ -7,11 +7,9 @@
 source("benefits_tables/base_table.R")
 source("benefits_tables/federal_poverty_guidelines.R")
 
-child_care <- function() {
+child_care <- function(base_table) {
 
   current_year <- 2019
-
-  care <- base_composition()
 
   # the market value of subsidies are based on the 2019 NC subsidized child care
   # market rates for Forsyth County 4-star child care centers
@@ -30,7 +28,7 @@ child_care <- function() {
   )
 
   # create new column for market rates, which signifies benefit level
-  care <- care |>
+  care <- base_table |>
     dplyr::left_join(market_rates, by = "children", relationship = "many-to-many") |>
     dplyr::mutate(
       # recipients have to pay 10% of income

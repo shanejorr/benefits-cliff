@@ -4,23 +4,12 @@
 #
 ###############################################################################
 
-library(tidyverse)
-
-housing <- read_rds('benefits_tables/tables/base.rds')
-
-# create data frame of fair market rent values in 2019 based on family size
-# this is the max rent that can be reimbursed
-# https://www.huduser.gov/portal/datasets/fmr.html#2019_data
-fmr <- housing %>%
-  select(adults, children) %>%
-  distinct() %>%
-  mutate(fmr = c(583, 729, 729, 985, 583, 729, 729, 985),
-  # we will assume people's rent amount is 80% of fmr
-        rent = round(fmr * .8 , 0)) %>%
-  select(-fmr)
+source("benefits_tables/base_table.R")
+source("benefits_tables/federal_poverty_guidelines.R")
 
 # create function to calculate total tenant rent, which is
 # the amount of rent the tenant has to pay
+# this is not the function that calculates total housing voucher
 tenant_rent <- function(kids, income) {
 
   # total tenant payment (ttp) is the amount tenants have to pay in rent
@@ -60,23 +49,43 @@ tenant_rent <- function(kids, income) {
 
 }
 
-# add fmr to data set
-housing <- housing %>%
-  left_join(fmr, by=c('adults', 'children'))
+housing_voucher <- function(base_table) {
 
-# calculate total tenant payment
-# we're using an ifelse statement for kids because when there are
-# three kids, we're only taking a deduction for two of the kids
-# the third kid, who is ten, is assumed not to have any child care costs
-housing$tenant_payment <- tenant_rent(ifelse(housing$children == 3, 2, housing$children),
-                                      housing$monthly_income)
-housing <- housing %>%
-  # benefit amount (payment) is rent minus ttp
-  mutate(payment = rent - tenant_payment,
-        # if payment is negative, make it 0
-        payment = ifelse(payment < 0, 0, payment),
-        payment = round(payment, 2),
-        benefit = "Housing Choice Voucher") %>%
-  select(composition, adults, children, monthly_income, payment, benefit)
+  # create data frame of fair market rent values in 2019 based on family size
+  # this is the max rent that can be reimbursed
+  # https://www.huduser.gov/portal/datasets/fmr.html#2019_data
+  fmr <- base_table |>
+    dplyr::select(adults, children) |>
+    dplyr::distinct() |>
+    dplyr::mutate(fmr = c(583, 729, 729, 985, 583, 729, 729, 985),
+    # we will assume people's rent amount is 80% of fmr
+          rent = round(fmr * .8 , 0)) |>
+    dplyr::select(-fmr)
 
-write_rds(housing, 'benefits_tables/tables/sec8.rds')
+  # add fmr to data set
+  housing <- base_table |>
+    dplyr::left_join(fmr, by=c('adults', 'children'), relationship = "many-to-one")
+
+  # calculate total tenant payment
+  # we're using an ifelse statement for kids because when there are
+  # three kids, we're only taking a deduction for two of the kids
+  # the third kid, who is ten, is assumed not to have any child care costs
+  housing$tenant_payment <- tenant_rent(
+    ifelse(housing$children == 3, 2, housing$children),
+    housing$monthly_income
+  )
+
+  housing <- housing |>
+    # benefit amount (payment) is rent minus ttp
+    dplyr::mutate(
+      payment = rent - tenant_payment,
+      # if payment is negative, make it 0
+      payment = ifelse(payment < 0, 0, payment),
+      payment = round(payment, 2),
+      benefit = "Housing Choice Voucher"
+    ) |>
+    dplyr::select(composition, adults, children, monthly_income, payment, benefit)
+
+  return(housing)
+
+}

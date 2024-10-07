@@ -13,13 +13,11 @@
 source("benefits_tables/base_table.R")
 source("benefits_tables/federal_poverty_guidelines.R")
 
-fns_snap <- function() {
+fns_snap <- function(base_table) {
 
   current_year <- 2019
 
-  base <- base_composition()
-
-  snap <- base |>
+  snap <- base_table |>
     dplyr::mutate(benefit = "FNS (Food Stamps)")
 
   # utility allowance based on family size
@@ -86,17 +84,6 @@ fns_snap <- function() {
       # convert this amount to 0 if it is negative
       family_contribution = ifelse(family_contribution < 0, 0, family_contribution)
     )
-
-  # SNAP max allotment amounts FY 2019
-  # https://www.fns.usda.gov/snap/allotment/cola
-  snap_amounts <- c(`1` = 192,
-                    `2` = 353,
-                    `3` = 505,
-                    `4` = 642,
-                    `5` = 762,
-                    `6` = 914,
-                    `7` = 1011,
-                    `8` = 1155)
 
   # maximum income is set at 200% of federal poverty guideline
   # read in federal poverty guidelines
