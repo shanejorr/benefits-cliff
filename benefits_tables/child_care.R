@@ -4,9 +4,6 @@
 #
 ##############################################################
 
-source("benefits_tables/base_table.R")
-source("benefits_tables/federal_poverty_guidelines.R")
-
 child_care <- function(base_table) {
 
   current_year <- 2019
@@ -45,11 +42,11 @@ child_care <- function(base_table) {
 
   family_sizes <- unique(care$size)
 
-  fpg <- get_poverty_guidelines(current_year, 'us', family_sizes) |>
+  fpg <- get_poverty_guidelines(current_year, 'us', family_sizes, by_month = TRUE) |>
     dplyr::select(household_size, poverty_threshold)
 
   fpg <- fpg |>
-    # convert guideline amounts to 200% and calculate bymonth
+    # convert guideline amounts to 200% and calculate by month
     dplyr::mutate(income_limit = round(poverty_threshold * 2, 0)) |>
     dplyr::rename(size = household_size) |>
     dplyr::select(size, income_limit)
@@ -60,7 +57,7 @@ child_care <- function(base_table) {
     # set payment to 0 if income is greater than 200% of poverty guideline
     dplyr::mutate(
       payment = dplyr::if_else(monthly_income > income_limit, 0, payment),
-      benefit = "NC Child Care Subsidy / Smart Start"
+      benefit = "NC Child Care Subsidy"
     ) |>
     dplyr::select(composition, adults, children, monthly_income, payment, benefit)
 

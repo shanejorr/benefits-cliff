@@ -16,7 +16,7 @@ medicaid <- function(base_table) {
   family_sizes <- unique(base_table$size)
 
   # read in poverty guidelines and filter for 2019
-  fpl <- get_poverty_guidelines(current_year, 'us', family_sizes) |>
+  fpl <- get_poverty_guidelines(current_year, 'us', family_sizes, by_month = TRUE) |>
     dplyr::select(household_size, guidelines_month = poverty_threshold)
 
   # medicaid for children and NC health choices provide generally the same

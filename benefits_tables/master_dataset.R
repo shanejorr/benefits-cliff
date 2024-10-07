@@ -5,8 +5,10 @@
 #
 ##############################################################################
 
-library(tidyverse)
-library(jsonlite)
+source("benefits_tables/base_table.R")
+source("benefits_tables/federal_poverty_guidelines.R")
+
+base_table <- base_composition()
 
 file_dir <- "benefits_tables/tables/"
 
@@ -27,4 +29,4 @@ write_rds(master, "plots/data/benefits.rds")
 # trim down prior to sending to JSON, since we will be importing this
 master %>%
   select(-adults, -children) %>%
-  write_json("Forsyth_county_2019/plots/data/benefits.json") 
+  write_json("Forsyth_county_2019/plots/data/benefits.json")

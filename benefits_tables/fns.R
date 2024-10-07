@@ -10,9 +10,6 @@
 #
 #############################################################################
 
-source("benefits_tables/base_table.R")
-source("benefits_tables/federal_poverty_guidelines.R")
-
 fns_snap <- function(base_table) {
 
   current_year <- 2019
@@ -90,7 +87,7 @@ fns_snap <- function(base_table) {
 
   family_sizes <- unique(base_table$size)
 
-  fpg <- get_poverty_guidelines(current_year, 'us', family_sizes) |>
+  fpg <- get_poverty_guidelines(current_year, 'us', family_sizes, by_month = TRUE) |>
     dplyr::select(household_size, poverty_threshold)
 
   # convert guideline amounts to 200%

@@ -4,9 +4,6 @@
 #
 ###############################################################################
 
-source("benefits_tables/base_table.R")
-source("benefits_tables/federal_poverty_guidelines.R")
-
 # create function to calculate total tenant rent, which is
 # the amount of rent the tenant has to pay
 # this is not the function that calculates total housing voucher

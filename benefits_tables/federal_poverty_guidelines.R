@@ -5,14 +5,15 @@
 #
 ###############################################################################
 
-get_single_poverty_guidelines <- function(year, state, household_size) {
+get_single_poverty_guidelines <- function(year, state, household_size, by_month = FALSE) {
 
-  # Function to fetch poverty guidelines for a specific year, state, and household size
   #' @title Fetch Federal Poverty Guidelines
   #' @description Fetches the federal poverty guideline for a given year, state, and household size from the HHS API.
+  #'    The poverty guideline is the same for all states except Hawaii and Alaska.
   #' @param year An integer representing the year. Valid years are between 1983 and 2024.
   #' @param state A character string representing the state. Valid values are 'us' (contiguous U.S. and D.C.), 'hi' (Hawaii), and 'ak' (Alaska).
   #' @param household_size An integer representing the household size. Valid values are between 1 and 8.
+  #' @param by_month A logical value indicating whether to return the poverty threshold as a monthly value. Default is FALSE.
   #' @return A tibble with columns 'year', 'state', 'household_size', and 'poverty_threshold'.
   #' @examples
   #' df <- get_poverty_guidelines(2023, "us", 4)
@@ -53,23 +54,32 @@ get_single_poverty_guidelines <- function(year, state, household_size) {
   data <- httr2::resp_body_json(response)$data
 
   # Return the data as a data frame
-  tibble::tibble(
+  data <- tibble::tibble(
     year = as.numeric(data$year),
     state = data$state,
     household_size = as.numeric(data$household_size),
     poverty_threshold = as.numeric(data$income)
   )
+
+  if (by_month) {
+    data$poverty_threshold <- data$poverty_threshold / 12
+  }
+
+  return(data)
+
 }
 
 
-get_poverty_guidelines <- function(years, states, household_sizes) {
+get_poverty_guidelines <- function(years, states, household_sizes, by_month = FALSE) {
 
-  # Function to fetch poverty guidelines for multiple years and/or household sizes
   #' @title Fetch Multiple Federal Poverty Guidelines
   #' @description Fetches federal poverty guidelines for multiple years and/or household sizes from the HHS API.
+  #'    The poverty guideline is the same for all states except Hawaii and Alaska.
+  #'    Guideline values are per year.
   #' @param years A vector of integers representing the years. Valid years are between 1983 and 2024.
   #' @param state A character string representing the state. Valid values are 'us' (contiguous U.S. and D.C.), 'hi' (Hawaii), and 'ak' (Alaska).
   #' @param household_sizes A vector of integers representing household sizes. Valid values are between 1 and 8.
+  #' @param by_month A logical value indicating whether to return the poverty threshold as a monthly value. Default is FALSE.
   #' @return A tibble with columns 'year', 'state', 'household_size', and 'poverty_threshold' for each combination of year and household size.
   #' @examples
   #' years <- c(2022, 2023)
