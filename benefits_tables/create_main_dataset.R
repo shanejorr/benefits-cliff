@@ -1,32 +1,40 @@
 ############################################################################
 #
-# This script combines the individual benefit datasets to create a master
-# csv dataset for plotting with d3
+# This script combines the individual benefit datasets to create a master dataset
 #
 ##############################################################################
 
-source("benefits_tables/base_table.R")
-source("benefits_tables/federal_poverty_guidelines.R")
+create_benefits_table <- function() {
 
-base_table <- base_composition()
+  tables_folder <- "benefits_tables"
 
-file_dir <- "benefits_tables/tables/"
+  # source all function files ----------------------
+  # files are split between general functions in the 'functions' folder
+  # and functions that calculate benefits in the 'benefits' folder
 
-master <- bind_rows(
-  list(
-    read_rds(str_c(file_dir, 'work_first.rds')),
-    read_rds(str_c(file_dir, 'fns.rds')),
-    read_rds(str_c(file_dir, 'child_care_subsidy.rds')),
-    read_rds(str_c(file_dir, 'sec8.rds')),
-    read_rds(str_c(file_dir, 'medical.rds')),
-    read_rds(str_c(file_dir, 'wic.rds'))
-  )) %>%
-  arrange(benefit, monthly_income, adults, children)
+  # create single vector with all the file names containing functions
+  function_files <- list.files(path = paste0(tables_folder, "/functions"), pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+  benefit_files <- list.files(path = paste0(tables_folder, "/benefits"), pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
 
-write_csv(master, "plots/data/benefits.csv")
-write_rds(master, "plots/data/benefits.rds")
+  all_function_files <- c(function_files, benefit_files)
 
-# trim down prior to sending to JSON, since we will be importing this
-master %>%
-  select(-adults, -children) %>%
-  write_json("Forsyth_county_2019/plots/data/benefits.json")
+  # source all functions
+  purrr::walk(all_function_files, source)
+
+  # create benefits table -------------------------
+
+  base_table <- base_composition()
+
+  .data <- dplyr::bind_rows(
+    list(
+      child_care(base_table),
+      fns_snap(base_table),
+      housing_voucher(base_table),
+      medicaid(base_table),
+      tanf(base_table)
+    )) |>
+    dplyr::arrange(benefit, monthly_income, adults, children)
+
+  return(.data)
+
+}
