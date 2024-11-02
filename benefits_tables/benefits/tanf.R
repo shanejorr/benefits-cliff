@@ -7,6 +7,8 @@
 
 tanf <- function(base_table) {
 
+  message("Calculating TANF benefits")
+
   # monthly payment is 50% difference between total countable income and need standard (pg. 34)
 
   # table below is need standard
@@ -20,7 +22,7 @@ tanf <- function(base_table) {
     dplyr::left_join(tanf_need_std, by=c('size'='household_size'), relationship = 'many-to-one')
 
   # all values should match
-  if (any(is.na(tanf_base$need_std))) stop("TANF need standards are not all defined", call. = FALSE)
+  if (any(is.na(tanf$need_std))) stop("TANF need standards are not all defined", call. = FALSE)
 
   tanf <- tanf |>
     dplyr::mutate(

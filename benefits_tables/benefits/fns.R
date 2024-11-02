@@ -12,6 +12,8 @@
 
 fns_snap <- function(base_table) {
 
+  message("Calculating SNAP / FNS benefits")
+
   current_year <- 2019
 
   snap <- base_table |>

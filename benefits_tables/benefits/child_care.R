@@ -6,6 +6,8 @@
 
 child_care <- function(base_table) {
 
+  message("Calculating child care benefits")
+
   current_year <- 2019
 
   # the market value of subsidies are based on the 2019 NC subsidized child care

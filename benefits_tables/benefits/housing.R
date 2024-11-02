@@ -9,6 +9,8 @@
 # this is not the function that calculates total housing voucher
 tenant_rent <- function(kids, income) {
 
+  message("Calculating housing benefits")
+
   # total tenant payment (ttp) is the amount tenants have to pay in rent
   # it is the greater of 30% of their monthly adjusted income,
   # 10% of their monthly gross income, or $24

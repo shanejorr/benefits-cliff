@@ -11,6 +11,8 @@
 
 medicaid <- function(base_table) {
 
+  message("Calculating medicaid benefits")
+
   current_year <- 2019
 
   family_sizes <- unique(base_table$size)
